@@ -41,27 +41,31 @@ def create_yolo_annotations(image_folders, annotation_json, yolo_output_dir):
                 
                 # Get annotations for this image
                 img_id = int(os.path.splitext(img_filename)[0])
-                img_annotations = annotations.get(str(img_id), [])
+                img_annotations = annotations['imgs'].get(str(img_id), {}).get('objects', [])
                 yolo_annotations = []
 
+
                 for ann in img_annotations:
+
                     # Convert COCO bbox to YOLO format
                     bbox = ann["bbox"]
-                    x_center = (bbox[0] + bbox[2] / 2) / width
-                    y_center = (bbox[1] + bbox[3] / 2) / height
-                    bbox_width = bbox[2] / width
-                    bbox_height = bbox[3] / height
+                    x_center = (bbox["xmin"] + (bbox["xmax"] - bbox["xmin"]) / 2) / width
+                    y_center = (bbox["ymin"] + (bbox["ymax"] - bbox["ymin"]) / 2) / height
+                    bbox_width = (bbox["xmax"] - bbox["xmin"]) / width
+                    bbox_height = (bbox["ymax"] - bbox["ymin"]) / height
 
-                    yolo_annotation = f"{ann['category_id']} {x_center} {y_center} {bbox_width} {bbox_height}"
+                    # The category should be converted to an ID; if mapping exists, apply here
+                    category_id = ann['category']  # This might need conversion if using string names
+
+                    yolo_annotation = f"{category_id} {x_center} {y_center} {bbox_width} {bbox_height}"
                     yolo_annotations.append(yolo_annotation)
+
 
                 # Save YOLO annotations to file
                 yolo_annotation_file = os.path.join(yolo_output_dir, os.path.splitext(img_filename)[0] + '.txt')
                 with open(yolo_annotation_file, 'w') as f:
                     for yolo_ann in yolo_annotations:
                         f.write(yolo_ann + '\n')
-
-    print("YOLO annotation creation completed.")
 
 # Define paths to image folders
 image_folders = [
