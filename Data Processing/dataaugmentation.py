@@ -7,7 +7,7 @@ import cv2
 
 
 # Path to the JSON file containing filtered annotations for augmentation
-augmentation_file_path = '/Users/jessica_1/Documents/tt100k_2021/annotations_for_augmentation.json'
+augmentation_file_path = 'C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k_2021/annotations_all.json'
 
 # Load the JSON file
 with open(augmentation_file_path, 'r', encoding='utf-8') as f:
