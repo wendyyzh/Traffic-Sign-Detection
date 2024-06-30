@@ -88,7 +88,7 @@ if annotations:
     augmentation_annotations = {img_id: annotation for img_id, annotation in annotations.items()
                                 if any(obj['category'] in augmentation_class_counts for obj in annotation['objects'])}
 
-    augmentation_file_path = '/Users/jessica_1/Documents/tt100k_2021/annotations_for_augmentation.json'
+    augmentation_file_path = 'C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k_2021/augment.json'
     with open(augmentation_file_path, 'w', encoding='utf-8') as f:
         json.dump(augmentation_annotations, f, ensure_ascii=False, indent=4)
 
