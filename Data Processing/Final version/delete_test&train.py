@@ -10,8 +10,8 @@ train_annotation_file_path = 'C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k
 train_deleted_annotation_file_path = 'C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k_2021/train_deleted.json'
 test_annotation_file_path = 'C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k_2021/test.json'
 test_deleted_annotation_file_path = 'C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k_2021/test_deleted.json'
-train_image_base_path = 'C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k_2021/train'
-test_image_base_path = 'C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k_2021/test'
+train_image_base_path = 'C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k_2021'
+test_image_base_path = 'C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k_2021'
 
 # Load the JSON annotation files
 with open(train_annotation_file_path, 'r', encoding='utf-8') as f:
