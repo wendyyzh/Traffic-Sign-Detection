@@ -5,10 +5,41 @@ import logging
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 
+def check_permissions(directory):
+    test_file_path = os.path.join(directory, 'test_permission.txt')
+    
+    try:
+        # Attempt to create a test file
+        with open(test_file_path, 'w') as test_file:
+            test_file.write('Testing permissions.')
+        
+        # Attempt to read the test file
+        with open(test_file_path, 'r') as test_file:
+            content = test_file.read()
+            if content != 'Testing permissions.':
+                raise PermissionError("Read operation failed.")
+        
+        # Attempt to delete the test file
+        os.remove(test_file_path)
+        
+        logging.info(f"Permissions are sufficient for directory: {directory}")
+        return True
+    except PermissionError as e:
+        logging.error(f"PermissionError: {e}")
+    except Exception as e:
+        logging.error(f"Error: {e}")
+    
+    logging.error(f"Insufficient permissions for directory: {directory}")
+    return False
+
 # Paths
 annotation_file_path = 'C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k_2021/train.json'
-image_base_path = 'C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k_2021'
+image_base_path = 'C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k_2021/train'
 new_annotation_file_path = 'C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k_2021/train_deleted.json'
+
+# Check permissions
+if not check_permissions(image_base_path):
+    raise PermissionError(f"Insufficient permissions for directory: {image_base_path}")
 
 # Load the JSON annotation file
 with open(annotation_file_path, 'r', encoding='utf-8') as f:
@@ -79,4 +110,3 @@ with open(new_annotation_file_path, 'w', encoding='utf-8') as f:
     json.dump(new_data, f, ensure_ascii=False, indent=4)
 
 logging.info(f"Updated annotations saved to {new_annotation_file_path}")
-
