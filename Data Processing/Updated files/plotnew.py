@@ -67,6 +67,22 @@ for category in all_classes:
     class_counts_combined['Augmented'].append(class_counts_augmented.get(category, 0))
 
 df_combined = pd.DataFrame(class_counts_combined)
+for index, row in df_combined.iterrows():
+    print(f"Class: {row['Class']}, Train Instances: {row['Train']}, Augmented Instances: {row['Augmented']}")
+
+## Checking json
+# Load the JSON annotation file
+annotation_file_path = '/Users/jessica_1/Documents/tt100k_2021/annotations_augmented.json'
+with open(annotation_file_path, 'r', encoding='utf-8') as f:
+    data = json.load(f)
+
+# Check the number of items in the JSON file
+# Assuming the structure has an 'imgs' key that contains the items
+if 'imgs' in data:
+    num_items = len(data['imgs'])
+    print(f"The number of items in 'imgs': {num_items}")
+else:
+    print("No 'imgs' key found in the JSON data.")
 
 # Plot the histogram
 df_combined.set_index('Class').plot(kind='bar', stacked=True, figsize=(14, 8))
