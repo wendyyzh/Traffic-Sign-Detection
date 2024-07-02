@@ -11,10 +11,10 @@ import logging
 logging.basicConfig(level=logging.INFO)
 
 # Paths
-annotation_file_path = '/Users/jessica_1/Documents/tt100k_2021/annotations_all.json'
-image_base_path = '/Users/jessica_1/Documents/tt100k_2021/'
-output_base_path = '/Users/jessica_1/Documents/tt100k_2021/augmented/'
-new_annotation_file_path = '/Users/jessica_1/Documents/tt100k_2021/annotations_augmented.json'
+annotation_file_path = 'C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k_2021/annotations_all.json'
+image_base_path = 'C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k_2021'
+output_base_path = 'C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k_2021/aug_image'
+new_annotation_file_path = 'C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k_2021/annotation_augment.json'
 
 # Load the JSON annotation file
 with open(annotation_file_path, 'r', encoding='utf-8') as f:

@@ -6,7 +6,7 @@ import os
 from collections import defaultdict
 
 # Load the JSON annotation file
-annotation_file_path = '/Users/jessica_1/Documents/tt100k_2021/annotations_augmented.json'
+annotation_file_path = 'C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k_2021/annotation_augment.json'
 with open(annotation_file_path, 'r', encoding='utf-8') as f:
     data = json.load(f)
 
@@ -46,7 +46,7 @@ if annotations:
             bounding_box_areas.append(area)
 
 # Count instances in the augmented folder
-augmented_image_base_path = '/Users/jessica_1/Documents/tt100k_2021/augmented/'
+augmented_image_base_path = 'C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k_2021/aug_image'
 for image_file in os.listdir(augmented_image_base_path):
     if image_file.endswith('.jpg'):
         category = image_file.split('_')[0]
@@ -72,7 +72,7 @@ for index, row in df_combined.iterrows():
 
 ## Checking json
 # Load the JSON annotation file
-annotation_file_path = '/Users/jessica_1/Documents/tt100k_2021/annotations_augmented.json'
+annotation_file_path = 'C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k_2021/annotation_augment.json'
 with open(annotation_file_path, 'r', encoding='utf-8') as f:
     data = json.load(f)
 
