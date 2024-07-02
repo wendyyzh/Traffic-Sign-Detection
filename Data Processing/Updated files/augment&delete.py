@@ -12,9 +12,9 @@ logging.basicConfig(level=logging.INFO)
 
 # Paths
 annotation_file_path = '/Users/jessica_1/Documents/tt100k_2021/annotations_all.json'
-image_base_path = '/Users/jessica_1/Documents/tt100k_2021/'  # Adjusted base path
-output_base_path = '/Users/jessica_1/Documents/tt100k_2021/augmented/'  # Output path for augmented images
-new_annotation_file_path = '/Users/jessica_1/Documents/tt100k_2021/annotations_augmented.json'  # Path for new annotation file
+image_base_path = '/Users/jessica_1/Documents/tt100k_2021/'
+output_base_path = '/Users/jessica_1/Documents/tt100k_2021/augmented/'
+new_annotation_file_path = '/Users/jessica_1/Documents/tt100k_2021/annotations_augmented.json'
 
 # Load the JSON annotation file
 with open(annotation_file_path, 'r', encoding='utf-8') as f:
@@ -27,10 +27,10 @@ if not annotations:
 
 # Define augmentation sequence
 augmenters = iaa.Sequential([
-    iaa.Fliplr(0.5),  # Horizontal flips
-    iaa.Affine(rotate=(-30, 30)),  # Random rotations
-    iaa.Affine(scale=(0.8, 1.2)),  # Random scaling
-    iaa.AdditiveGaussianNoise(scale=(0, 0.05 * 255)),  # Add Gaussian noise
+    iaa.Fliplr(0.5),
+    iaa.Affine(rotate=(-30, 30)),
+    iaa.Affine(scale=(0.8, 1.2)),
+    iaa.AdditiveGaussianNoise(scale=(0, 0.05 * 255)),
 ])
 
 # Create the output directory if it does not exist
@@ -39,6 +39,9 @@ os.makedirs(output_base_path, exist_ok=True)
 # Initialize dictionaries to count instances of each class and to store images by class
 class_counts = {}
 images_by_class = {}
+
+# Track deleted images
+deleted_images = set()
 
 # Resize function to reduce memory usage
 def resize_image(image, max_size=(64, 64)):
@@ -64,80 +67,81 @@ for img_id, annotation in annotations.items():
 
         image = resize_image(image)
 
+        valid_objects = []
         for obj in annotation['objects']:
             category = obj['category']
             if category in class_counts:
                 class_counts[category] += 1
-                images_by_class[category].append((img_id, image))
+                images_by_class.setdefault(category, []).append((img_id, image))
+                valid_objects.append(obj)
             else:
                 class_counts[category] = 1
                 images_by_class[category] = [(img_id, image)]
+                valid_objects.append(obj)
+        
+        if not valid_objects:
+            deleted_images.add(img_id)
+            logging.info(f"Deleting image {img_id} because all instances are in classes with fewer than 500 images.")
+    
     except cv2.error as e:
         logging.error(f"OpenCV error: {e}")
 
-# Identify classes with fewer than 500 instances
+# Identify classes with fewer than 500 instances and remove their annotations
 classes_to_delete = {k for k, v in class_counts.items() if v < 500}
 
-# Delete images belonging to these classes
 for category in classes_to_delete:
-    for img_id, _ in images_by_class[category]:
+    for img_id, _ in images_by_class.get(category, []):
         if img_id in annotations:
-            image_path = os.path.join(image_base_path, annotations[img_id].get('path', ''))
-            if os.path.exists(image_path):
-                os.remove(image_path)
-            annotations.pop(img_id, None)
-    images_by_class.pop(category, None)
-    class_counts.pop(category, None)
+            annotation = annotations[img_id]
+            annotation['objects'] = [obj for obj in annotation['objects'] if obj['category'] != category]
+            if not annotation['objects']:
+                image_path = os.path.join(image_base_path, annotation.get('path', ''))
+                if os.path.exists(image_path):
+                    os.remove(image_path)
+                annotations.pop(img_id, None)
+                deleted_images.add(img_id)
 
 # Augment images to balance the classes
-augmented_class_counts = {key: len(value) for key, value in images_by_class.items()}
-bounding_box_areas = []
 new_annotations = {}
 
 for category, images in images_by_class.items():
     if len(images) >= 1000:
         logging.info(f"Category {category} already has {len(images)} instances. No augmentation needed.")
         for img_id, image in images:
-            if img_id in annotations:
+            if img_id in annotations and img_id not in deleted_images:
                 new_annotations[img_id] = annotations[img_id]
         continue
+    elif len(images) >= 500:
+        augment_needed = 1000 - len(images)
+        logging.info(f"Augmenting {category} with {augment_needed} images.")
+        batch_size = 5  # Reduce batch size to save memory
+        augmented_images = []
+        for start in range(0, augment_needed, batch_size):
+            end = min(start + batch_size, augment_needed)
+            batch_images = [img[1] for img in images[:end - start]]
+            aug_images = augmenters(images=np.array(batch_images))
+            augmented_images.extend(aug_images)
 
-    augment_needed = 1000 - len(images)
-    logging.info(f"Augmenting {category} with {augment_needed} images.")
-    batch_size = 5  # Reduce batch size to save memory
-    augmented_images = []
-    for start in range(0, augment_needed, batch_size):
-        end = min(start + batch_size, augment_needed)
-        batch_images = [img[1] for img in images[:end - start]]
-        aug_images = augmenters(images=np.array(batch_images))
-        augmented_images.extend(aug_images)
+            # Save augmented images
+            for i, aug_image in enumerate(aug_images):
+                if len(images_by_class[category]) >= 1000:
+                    break
+                aug_img_id = f"{category}_aug_{start+i}"
+                aug_img_path = f"{output_base_path}{category}_aug_{start+i}.jpg"
+                cv2.imwrite(aug_img_path, aug_image)
+                new_annotations[aug_img_id] = {
+                    'path': f"augmented/{category}_aug_{start+i}.jpg",
+                    'objects': annotations.get(images[i][0], {}).get('objects', [])
+                }
+                images_by_class[category].append((aug_img_id, aug_image))
 
-        # Save augmented images
-        for i, aug_image in enumerate(aug_images):
-            if len(images_by_class[category]) >= 1000:
-                break
-            aug_img_id = f"{category}_aug_{start+i}"
-            aug_img_path = f"{output_base_path}{category}_aug_{start+i}.jpg"
-            cv2.imwrite(aug_img_path, aug_image)
-            new_annotations[aug_img_id] = {
-                'path': f"augmented/{category}_aug_{start+i}.jpg",
-                'objects': annotations.get(images[i][0], {}).get('objects', [])
-            }
-            images_by_class[category].append((aug_img_id, aug_image))
-
-    augmented_class_counts[category] = len(images_by_class[category])
-
-    # Add original images to the new annotations
-    for img_id, image in images:
-        if img_id in annotations:
-            new_annotations[img_id] = annotations[img_id]
-
-# Save new annotations to a JSON file
+# Save new annotations to a JSON file containing only augmented and non-deleted original annotations
 new_data = {'imgs': new_annotations}
 with open(new_annotation_file_path, 'w', encoding='utf-8') as f:
     json.dump(new_data, f, ensure_ascii=False, indent=4)
 
 # Plot the histogram of class counts after augmentation
+augmented_class_counts = {key: len(value) for key, value in images_by_class.items()}
 augmented_counts_df = pd.DataFrame(list(augmented_class_counts.items()), columns=['Class', 'Count'])
 augmented_counts_df = augmented_counts_df.sort_values(by='Count', ascending=False)
 
@@ -147,30 +151,4 @@ plt.xlabel('Class')
 plt.ylabel('Number of Instances')
 plt.title('Number of Instances in Each Class After Augmentation')
 plt.xticks(rotation=90)  # Rotate class labels for better readability
-plt.show()
-
-# Calculate bounding box areas for histogram (optional, can be omitted if not needed)
-for img_id, annotation in new_annotations.items():
-    for obj in annotation['objects']:
-        bbox = obj['bbox']
-        width = bbox['xmax'] - bbox['xmin']
-        height = bbox['ymax'] - bbox['ymin']
-        area = width * height
-        bounding_box_areas.append(area)
-
-# Define custom bins
-bins = np.arange(0, 51000, 1000)  # Intervals of 1000 from 0 to 50,000
-labels = [f"{i//1000}k-{(i+1000)//1000}k" for i in bins[:-2]] + ["50k"]
-
-# Calculate histogram with custom bins
-hist, bin_edges = np.histogram(bounding_box_areas, bins=bins)
-
-# Plot the histogram of bounding box areas
-plt.figure(figsize=(12, 8))
-plt.bar(bin_edges[:-1], hist, width=1000, align='edge')
-plt.xlabel('Bounding Box Area (pixels)')
-plt.ylabel('Number of Instances')
-plt.title('Histogram of Bounding Box Areas')
-plt.xticks(bin_edges[:-1], labels, rotation=90)  # Rotate labels for better readability
-plt.xlim(0, 50000)  # Set x-axis limit to 0 to 50,000
 plt.show()
