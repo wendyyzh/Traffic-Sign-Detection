@@ -2,160 +2,175 @@ import json
 import os
 import cv2
 import numpy as np
-import random
+import imgaug.augmenters as iaa
+import matplotlib.pyplot as plt
+import pandas as pd
+import logging
 
-def fix_path(path):
-    return path.replace('/', '\\')
+# Set up logging
+logging.basicConfig(level=logging.INFO)
 
-# Paths to annotation JSON file and multiple image directories
-annotation_file_path = fix_path('C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k_2021/augment.json')
-image_base_paths = fix_path('C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k_2021')
-output_dir = fix_path('C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k_2021/augmented_images')
+# Paths
+annotation_file_path = '/Users/jessica_1/Documents/tt100k_2021/annotations_all.json'
+image_base_path = '/Users/jessica_1/Documents/tt100k_2021/'  # Adjusted base path
+output_base_path = '/Users/jessica_1/Documents/tt100k_2021/augmented/'  # Output path for augmented images
+new_annotation_file_path = '/Users/jessica_1/Documents/tt100k_2021/annotations_augmented.json'  # Path for new annotation file
 
 # Load the JSON annotation file
 with open(annotation_file_path, 'r', encoding='utf-8') as f:
     data = json.load(f)
 
-# Verify the structure of the loaded data
-print(f"Data type: {type(data)}")
-if isinstance(data, dict):
-    print(f"Keys in the data: {data.keys()}")
-else:
-    print("Data is not a dictionary.")
+# Confirm the structure of the data
+annotations = data.get('imgs')
+if not annotations:
+    raise ValueError("No 'imgs' key found in the data.")
 
-# Get annotations
-annotations = data.get('imgs', None)
+# Define augmentation sequence
+augmenters = iaa.Sequential([
+    iaa.Fliplr(0.5),  # Horizontal flips
+    iaa.Affine(rotate=(-30, 30)),  # Random rotations
+    iaa.Affine(scale=(0.8, 1.2)),  # Random scaling
+    iaa.AdditiveGaussianNoise(scale=(0, 0.05 * 255)),  # Add Gaussian noise
+])
 
-if annotations is None:
-    print("Error: 'imgs' key not found in the data.")
-else:
-    # Initialize class counts
-    augmentation_class_counts = {}
-    for img_id, annotation in annotations.items():
+# Create the output directory if it does not exist
+os.makedirs(output_base_path, exist_ok=True)
+
+# Initialize dictionaries to count instances of each class and to store images by class
+class_counts = {}
+images_by_class = {}
+
+# Resize function to reduce memory usage
+def resize_image(image, max_size=(64, 64)):
+    height, width = image.shape[:2]
+    if height > max_size[0] or width > max_size[1]:
+        scale = min(max_size[0] / height, max_size[1] / width)
+        return cv2.resize(image, (int(width * scale), int(height * scale)))
+    return image
+
+# Iterate through the annotations and count instances for each class
+for img_id, annotation in annotations.items():
+    image_path = os.path.join(image_base_path, annotation.get('path', ''))
+    logging.info(f"Attempting to read image: {image_path}")
+    if not os.path.exists(image_path):
+        logging.warning(f"Image file does not exist: {image_path}")
+        continue
+
+    try:
+        image = cv2.imread(image_path)
+        if image is None:
+            logging.warning(f"Cannot read image: {image_path}")
+            continue
+
+        image = resize_image(image)
+
         for obj in annotation['objects']:
             category = obj['category']
-            if category in augmentation_class_counts:
-                augmentation_class_counts[category] += 1
+            if category in class_counts:
+                class_counts[category] += 1
+                images_by_class[category].append((img_id, image))
             else:
-                augmentation_class_counts[category] = 1
+                class_counts[category] = 1
+                images_by_class[category] = [(img_id, image)]
+    except cv2.error as e:
+        logging.error(f"OpenCV error: {e}")
 
-    augmentation_class_counts = {k: v for k, v in augmentation_class_counts.items() if 500 <= v < 1000}
+# Identify classes with fewer than 500 instances
+classes_to_delete = {k for k, v in class_counts.items() if v < 500}
 
-    os.makedirs(output_dir, exist_ok=True)
+# Delete images belonging to these classes
+for category in classes_to_delete:
+    for img_id, _ in images_by_class[category]:
+        if img_id in annotations:
+            image_path = os.path.join(image_base_path, annotations[img_id].get('path', ''))
+            if os.path.exists(image_path):
+                os.remove(image_path)
+            annotations.pop(img_id, None)
+    images_by_class.pop(category, None)
+    class_counts.pop(category, None)
 
-    def find_image(img_filename):
-        for base_path in image_base_paths:
-            img_path = os.path.join(base_path, img_filename)
-            if os.path.exists(img_path):
-                return img_path
-        return None
+# Augment images to balance the classes
+augmented_class_counts = {key: len(value) for key, value in images_by_class.items()}
+bounding_box_areas = []
+new_annotations = {}
 
-    def augment_image(img, bbox):
-        augments = []
+for category, images in images_by_class.items():
+    if len(images) >= 1000:
+        logging.info(f"Category {category} already has {len(images)} instances. No augmentation needed.")
+        for img_id, image in images:
+            if img_id in annotations:
+                new_annotations[img_id] = annotations[img_id]
+        continue
 
-        # Random Flipping
-        if random.random() > 0.5:
-            img = cv2.flip(img, 1)
-            for box in bbox:
-                box['xmin'], box['xmax'] = 1 - box['xmax'], 1 - box['xmin']
-            augments.append("flip")
+    augment_needed = 1000 - len(images)
+    logging.info(f"Augmenting {category} with {augment_needed} images.")
+    batch_size = 5  # Reduce batch size to save memory
+    augmented_images = []
+    for start in range(0, augment_needed, batch_size):
+        end = min(start + batch_size, augment_needed)
+        batch_images = [img[1] for img in images[:end - start]]
+        aug_images = augmenters(images=np.array(batch_images))
+        augmented_images.extend(aug_images)
 
-        # Random Scaling
-        if random.random() > 0.5:
-            scale = random.uniform(0.8, 1.2)
-            h, w, _ = img.shape
-            img = cv2.resize(img, (int(w * scale), int(h * scale)))
-            for box in bbox:
-                box['xmin'], box['xmax'] = box['xmin'] * scale, box['xmax'] * scale
-                box['ymin'], box['ymax'] = box['ymin'] * scale, box['ymax'] * scale
-            augments.append("scale")
-
-        # Random Translation
-        if random.random() > 0.5:
-            tx = random.randint(-10, 10)
-            ty = random.randint(-10, 10)
-            M = np.float32([[1, 0, tx], [0, 1, ty]])
-            img = cv2.warpAffine(img, M, (w, h))
-            for box in bbox:
-                box['xmin'] += tx / w
-                box['xmax'] += tx / w
-                box['ymin'] += ty / h
-                box['ymax'] += ty / h
-            augments.append("translate")
-
-        # Random Rotation
-        if random.random() > 0.5:
-            angle = random.randint(-10, 10)
-            M = cv2.getRotationMatrix2D((w / 2, h / 2), angle, 1)
-            img = cv2.warpAffine(img, M, (w, h))
-            for box in bbox:
-                x = (box['xmin'] + box['xmax']) / 2
-                y = (box['ymin'] + box['ymax']) / 2
-                box['xmin'], box['ymin'] = rotate_point((x, y), (box['xmin'], box['ymin']), angle)
-                box['xmax'], box['ymax'] = rotate_point((x, y), (box['xmax'], box['ymax']), angle)
-            augments.append("rotate")
-
-        # Random Brightness/Contrast
-        if random.random() > 0.5:
-            alpha = random.uniform(0.8, 1.2)
-            beta = random.randint(-10, 10)
-            img = cv2.convertScaleAbs(img, alpha=alpha, beta=beta)
-            augments.append("brightness_contrast")
-
-        # Random Saturation/Hue
-        if random.random() > 0.5:
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-            img = np.array(img, dtype=np.float64)
-            img[..., 1] = img[..., 1] * random.uniform(0.8, 1.2)
-            img[..., 2] = img[..., 2] * random.uniform(0.8, 1.2)
-            img = np.clip(img, 0, 255)
-            img = np.array(img, dtype=np.uint8)
-            img = cv2.cvtColor(img, cv2.COLOR_HSV2BGR)
-            augments.append("saturation_hue")
-
-        return img, bbox, augments
-
-    def rotate_point(center, point, angle):
-        angle = np.deg2rad(angle)
-        temp_point = point[0] - center[0], point[1] - center[1]
-        temp_point = (temp_point[0] * np.cos(angle) - temp_point[1] * np.sin(angle),
-                      temp_point[0] * np.sin(angle) + temp_point[1] * np.cos(angle))
-        temp_point = temp_point[0] + center[0], temp_point[1] + center[1]
-        return temp_point
-
-    augmented_annotations = {}
-
-    for img_id, annotation in annotations.items():
-        img_filename = annotation['path']
-        img_path = find_image(img_filename)
-        if img_path is None:
-            print(f"Failed to find image: {img_filename}")
-            continue
-
-        img = cv2.imread(img_path)
-        if img is None:
-            print(f"Failed to load image: {img_path}")
-            continue
-
-        # Collect bounding boxes
-        bbox = [{'xmin': obj['bbox']['xmin'], 'ymin': obj['bbox']['ymin'],
-                 'xmax': obj['bbox']['xmax'], 'ymax': obj['ymax'],
-                 'category': obj['category']} for obj in annotation['objects']]
-
-        for i in range(2):  # Augment each image twice
-            aug_img, aug_bbox, augments = augment_image(img.copy(), bbox.copy())
-            aug_img_id = f"{img_id}_aug_{i}"
-            aug_img_path = os.path.join(output_dir, f"{aug_img_id}.jpg")
-            cv2.imwrite(aug_img_path, aug_img)
-
-            augmented_annotations[aug_img_id] = {
-                'path': aug_img_path,
-                'id': aug_img_id,
-                'objects': [{'bbox': {'xmin': box['xmin'], 'ymin': box['ymin'], 'xmax': box['xmax'], 'ymax': box['ymax']},
-                             'category': box['category']} for box in aug_bbox]
+        # Save augmented images
+        for i, aug_image in enumerate(aug_images):
+            if len(images_by_class[category]) >= 1000:
+                break
+            aug_img_id = f"{category}_aug_{start+i}"
+            aug_img_path = f"{output_base_path}{category}_aug_{start+i}.jpg"
+            cv2.imwrite(aug_img_path, aug_image)
+            new_annotations[aug_img_id] = {
+                'path': f"augmented/{category}_aug_{start+i}.jpg",
+                'objects': annotations.get(images[i][0], {}).get('objects', [])
             }
+            images_by_class[category].append((aug_img_id, aug_image))
 
-    # Save augmented annotations
-    augmented_file_path = fix_path('C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k_2021/augmented_annotations.json')
-    with open(augmented_file_path, 'w', encoding='utf-8') as f:
-        json.dump(augmented_annotations, f, ensure_ascii=False, indent=4)
+    augmented_class_counts[category] = len(images_by_class[category])
+
+    # Add original images to the new annotations
+    for img_id, image in images:
+        if img_id in annotations:
+            new_annotations[img_id] = annotations[img_id]
+
+# Save new annotations to a JSON file
+new_data = {'imgs': new_annotations}
+with open(new_annotation_file_path, 'w', encoding='utf-8') as f:
+    json.dump(new_data, f, ensure_ascii=False, indent=4)
+
+# Plot the histogram of class counts after augmentation
+augmented_counts_df = pd.DataFrame(list(augmented_class_counts.items()), columns=['Class', 'Count'])
+augmented_counts_df = augmented_counts_df.sort_values(by='Count', ascending=False)
+
+plt.figure(figsize=(12, 8))
+plt.bar(augmented_counts_df['Class'], augmented_counts_df['Count'])
+plt.xlabel('Class')
+plt.ylabel('Number of Instances')
+plt.title('Number of Instances in Each Class After Augmentation')
+plt.xticks(rotation=90)  # Rotate class labels for better readability
+plt.show()
+
+# Calculate bounding box areas for histogram (optional, can be omitted if not needed)
+for img_id, annotation in new_annotations.items():
+    for obj in annotation['objects']:
+        bbox = obj['bbox']
+        width = bbox['xmax'] - bbox['xmin']
+        height = bbox['ymax'] - bbox['ymin']
+        area = width * height
+        bounding_box_areas.append(area)
+
+# Define custom bins
+bins = np.arange(0, 51000, 1000)  # Intervals of 1000 from 0 to 50,000
+labels = [f"{i//1000}k-{(i+1000)//1000}k" for i in bins[:-2]] + ["50k"]
+
+# Calculate histogram with custom bins
+hist, bin_edges = np.histogram(bounding_box_areas, bins=bins)
+
+# Plot the histogram of bounding box areas
+plt.figure(figsize=(12, 8))
+plt.bar(bin_edges[:-1], hist, width=1000, align='edge')
+plt.xlabel('Bounding Box Area (pixels)')
+plt.ylabel('Number of Instances')
+plt.title('Histogram of Bounding Box Areas')
+plt.xticks(bin_edges[:-1], labels, rotation=90)  # Rotate labels for better readability
+plt.xlim(0, 50000)  # Set x-axis limit to 0 to 50,000
+plt.show()
