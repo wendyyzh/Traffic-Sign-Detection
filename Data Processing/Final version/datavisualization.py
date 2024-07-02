@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 
 # Load the JSON annotation file
-annotation_file_path ='C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k_2021/train_augmented.json'
+annotation_file_path ='C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k_2021/test.json'
 with open(annotation_file_path, 'r', encoding='utf-8') as f:
     data = json.load(f)
 
@@ -46,8 +46,8 @@ if annotations:
             area = width * height
             bounding_box_areas.append(area)
 
-    # Filter classes with more than 100 instances
-    filtered_class_counts = {label: count for label, count in class_counts.items() if count > 100}
+    # Filter classes with more than 10 instances
+    filtered_class_counts = {label: count for label, count in class_counts.items() if count > 10}
 
     # Convert to a pandas DataFrame for easy plotting
     df = pd.DataFrame(list(filtered_class_counts.items()), columns=['Class', 'Count'])
@@ -60,7 +60,7 @@ if annotations:
     plt.bar(df['Class'], df['Count'])
     plt.xlabel('Class')
     plt.ylabel('Number of Instances')
-    plt.title('Number of Instances in Each Class (Classes with > 100 Instances)')
+    plt.title('Number of Instances in Each Class (Classes with > 10 Instances)')
     plt.xticks(rotation=90)  # Rotate class labels for better readability
     plt.show()
 
