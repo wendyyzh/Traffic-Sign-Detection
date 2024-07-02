@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 
 # Load the JSON annotation file
-annotation_file_path ='C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k_2021/test_deleted.json'
+annotation_file_path ='C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k_2021/train_deleted.json'
 with open(annotation_file_path, 'r', encoding='utf-8') as f:
     data = json.load(f)
 
