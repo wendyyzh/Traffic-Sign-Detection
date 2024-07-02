@@ -11,7 +11,7 @@ import logging
 logging.basicConfig(level=logging.INFO)
 
 # Paths
-annotation_file_path = 'C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k_2021/train.json'
+annotation_file_path = 'C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k_2021/train_deleted.json'
 image_base_path = 'C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k_2021/train'
 output_base_path = 'C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k_2021/train'
 new_annotation_file_path = 'C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k_2021/train_augmented.json'
@@ -101,16 +101,3 @@ for category, images in images_by_class.items():
 new_data = {'imgs': annotations}
 with open(new_annotation_file_path, 'w', encoding='utf-8') as f:
     json.dump(new_data, f, ensure_ascii=False, indent=4)
-
-# Plot the histogram of class counts after augmentation
-augmented_class_counts = {key: len(value) for key, value in images_by_class.items()}
-augmented_counts_df = pd.DataFrame(list(augmented_class_counts.items()), columns=['Class', 'Count'])
-augmented_counts_df = augmented_counts_df.sort_values(by='Count', ascending=False)
-
-plt.figure(figsize=(12, 8))
-plt.bar(augmented_counts_df['Class'], augmented_counts_df['Count'])
-plt.xlabel('Class')
-plt.ylabel('Number of Instances')
-plt.title('Number of Instances in Each Class After Augmentation')
-plt.xticks(rotation=90)  # Rotate class labels for better readability
-plt.show()
