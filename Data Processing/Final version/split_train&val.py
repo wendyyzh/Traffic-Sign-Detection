@@ -4,8 +4,8 @@ import os
 import shutil
 import collections
 
-train_dir = 'C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k_2021/train'
-train_annotation_file_path = 'C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k_2021/train_deleted.json'
+train_dir = 'C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k_2021/train_del'
+train_annotation_file_path = 'C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k_2021/train_augmented.json'
 output_train_file_path = 'C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k_2021/train_split.json'
 output_val_file_path = 'C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k_2021/val_split.json'
 output_val_img_dir = 'C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k_2021/val'
