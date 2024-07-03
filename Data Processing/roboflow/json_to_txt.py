@@ -40,13 +40,11 @@ def create_yolo_annotations(image_folders, annotation_json, yolo_output_dir):
                 height, width, _ = img.shape
                 
                 # Get annotations for this image
-                img_id = int(os.path.splitext(img_filename)[0])
-                img_annotations = annotations['imgs'].get(str(img_id), {}).get('objects', [])
+                img_id = os.path.splitext(img_filename)[0]
+                img_annotations = annotations['imgs'].get(img_id, {}).get('objects', [])
                 yolo_annotations = []
 
-
                 for ann in img_annotations:
-
                     # Convert COCO bbox to YOLO format
                     bbox = ann["bbox"]
                     x_center = (bbox["xmin"] + (bbox["xmax"] - bbox["xmin"]) / 2) / width
@@ -60,7 +58,6 @@ def create_yolo_annotations(image_folders, annotation_json, yolo_output_dir):
                     yolo_annotation = f"{category_id} {x_center} {y_center} {bbox_width} {bbox_height}"
                     yolo_annotations.append(yolo_annotation)
 
-
                 # Save YOLO annotations to file
                 yolo_annotation_file = os.path.join(yolo_output_dir, os.path.splitext(img_filename)[0] + '.txt')
                 with open(yolo_annotation_file, 'w') as f:
@@ -69,14 +66,12 @@ def create_yolo_annotations(image_folders, annotation_json, yolo_output_dir):
 
 # Define paths to image folders
 image_folders = [
-    'C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k_2021/marks',
-    'C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k_2021/train',
-    'C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k_2021/test'
+    'C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k_2021/val',
 ]
 
 # Define paths to annotation JSON and YOLO output directory
-annotation_json = 'C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k_2021/annotations_all.json'
-yolo_output_dir = 'C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k_2021/yolo_annotations'
+annotation_json = 'C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k_2021/val_split.json'
+yolo_output_dir = 'C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k_2021/val_txt'
 
 # Create YOLO annotations
 create_yolo_annotations(image_folders, annotation_json, yolo_output_dir)
