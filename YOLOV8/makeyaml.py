@@ -3,24 +3,11 @@ import yaml
 
 # Define the dataset path and the folder structure
 dataset_path = "C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k_2021"
-images_path = os.path.join(dataset_path, 'images')
-labels_path = os.path.join(dataset_path, 'labels')
-train_images_path = os.path.join(images_path, 'train_split')
-val_images_path = os.path.join(images_path, 'val')
-train_labels_path = os.path.join(labels_path, 'train_txt')
-val_labels_path = os.path.join(labels_path, 'val_txt')
-
-# Create the directory structure
-os.makedirs(train_images_path, exist_ok=True)
-os.makedirs(val_images_path, exist_ok=True)
-os.makedirs(train_labels_path, exist_ok=True)
-os.makedirs(val_labels_path, exist_ok=True)
+train_images_path = os.path.join(dataset_path, 'train', 'images')
+val_images_path = os.path.join(dataset_path, 'validation', 'images')
 
 # Define the content of the data.yaml file
 data = {
-    'train': train_images_path,
-    'val': val_images_path,
-    'nc': 19,
     'names': [
         "pl100",
         "pl60",
@@ -42,6 +29,9 @@ data = {
         "w57",
         "p10"
     ],
+    'nc': 19,
+    'train': train_images_path,
+    'val': val_images_path
 }
 
 # Path to the data.yaml file
@@ -52,4 +42,3 @@ with open(data_yaml_path, 'w') as outfile:
     yaml.dump(data, outfile, default_flow_style=False)
 
 print(f"data.yaml file created successfully at {data_yaml_path}")
-print(f"Directory structure created under {dataset_path}")

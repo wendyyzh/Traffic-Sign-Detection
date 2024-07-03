@@ -61,6 +61,7 @@ def create_yolo_annotations(image_folders, annotation_json, yolo_output_dir):
                     print(f"Error: Failed to load image at {img_path}")
                     continue
                 height, width, _ = img.shape
+                print(height)
                 
                 # Get annotations for this image
                 img_id = os.path.splitext(img_filename)[0]
