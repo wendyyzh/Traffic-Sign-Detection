@@ -2,6 +2,29 @@ import json
 import os
 import cv2
 
+# Define the class name to ID mapping
+class_mapping = {
+    'pl100': 0,
+    'pl60': 1,
+    'p11': 2,
+    'pl40': 3,
+    'i2r': 4,
+    'il60': 5,
+    'pl5': 6,
+    'pl30': 7,
+    'pn': 8,
+    'pne': 9,
+    'i2': 10,
+    'pl80': 11,
+    'p26': 12,
+    'i5': 13,
+    'p5': 14,
+    'pl50': 15,
+    'i4': 16,
+    'w57': 17,
+    'p10': 18
+}
+
 def create_yolo_annotations(image_folders, annotation_json, yolo_output_dir):
     # Print paths to debug
     print(f"Annotation JSON path: {annotation_json}")
@@ -52,8 +75,13 @@ def create_yolo_annotations(image_folders, annotation_json, yolo_output_dir):
                     bbox_width = (bbox["xmax"] - bbox["xmin"]) / width
                     bbox_height = (bbox["ymax"] - bbox["ymin"]) / height
 
-                    # The category should be converted to an ID; if mapping exists, apply here
-                    category_id = ann['category']  # This might need conversion if using string names
+                    # Convert category name to ID using the mapping
+                    category_name = ann['category']
+                    if category_name in class_mapping:
+                        category_id = class_mapping[category_name]
+                    else:
+                        print(f"Warning: Unknown category {category_name} in image {img_filename}")
+                        continue  # Skip unknown categories
 
                     yolo_annotation = f"{category_id} {x_center} {y_center} {bbox_width} {bbox_height}"
                     yolo_annotations.append(yolo_annotation)
@@ -64,14 +92,15 @@ def create_yolo_annotations(image_folders, annotation_json, yolo_output_dir):
                     for yolo_ann in yolo_annotations:
                         f.write(yolo_ann + '\n')
 
+
 # Define paths to image folders
 image_folders = [
-    'C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k_2021/val',
+    'C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k_2021/train/images',
 ]
 
 # Define paths to annotation JSON and YOLO output directory
-annotation_json = 'C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k_2021/val_split.json'
-yolo_output_dir = 'C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k_2021/val_txt'
+annotation_json = 'C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k_2021/train_split.json'
+yolo_output_dir = 'C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k_2021/train/labels'
 
 # Create YOLO annotations
 create_yolo_annotations(image_folders, annotation_json, yolo_output_dir)
