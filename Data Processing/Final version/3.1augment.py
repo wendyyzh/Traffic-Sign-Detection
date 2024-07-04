@@ -4,8 +4,6 @@ import cv2
 import numpy as np
 import imgaug.augmenters as iaa
 from imgaug.augmentables.bbs import BoundingBox, BoundingBoxesOnImage
-import matplotlib.pyplot as plt
-import pandas as pd
 import logging
 
 # Set up logging
@@ -28,11 +26,12 @@ if not annotations:
 
 # Define augmentation sequence
 augmenters = iaa.Sequential([
-    iaa.Fliplr(0.5),
-    iaa.Affine(rotate=(-30, 30)),
+    iaa.Fliplr(0.5),  # Horizontal flip
+    iaa.Flipud(0.5),  # Vertical flip
+    iaa.Affine(rotate=(-20, 30)),
     iaa.Affine(scale=(0.8, 1.2)),
     iaa.AdditiveGaussianNoise(scale=(0, 0.05 * 255)),
-    iaa.Multiply((0.8, 1.2)),  # Brightness change
+    iaa.Multiply((0.8, 1.4)),  # Brightness change
 ])
 
 # Initialize dictionaries to count instances of each class and to store images by class
@@ -53,10 +52,13 @@ def clamp_bbox(bb, img_shape):
     y2 = min(img_shape[0], bb.y2)
     return BoundingBox(x1, y1, x2, y2)
 
+# Check if bounding box is valid
+def is_valid_bbox(bb):
+    return bb.x1 < bb.x2 and bb.y1 < bb.y2
+
 # Iterate through the annotations and count instances for each class
 for img_id, annotation in annotations.items():
     image_path = os.path.join(image_base_path, os.path.basename(annotation.get('path', '')))
-    logging.info(f"Attempting to read image: {image_path}")
     if not os.path.exists(image_path):
         logging.warning(f"Image file does not exist: {image_path}")
         continue
@@ -100,17 +102,35 @@ for category, images in images_by_class.items():
         augment_needed = 500 - len(images)
         logging.info(f"Augmenting {category} with {augment_needed} images.")
         batch_size = 5  # Reduce batch size to save memory
-        for start in range(0, augment_needed, batch_size):
+        generated = 0
+        while generated < augment_needed:
+            start = generated
             end = min(start + batch_size, augment_needed)
             batch_images = [img[1] for img in images[:end - start]]
             batch_bbs = [img[2] for img in images[:end - start]]
             aug_images, aug_bbs = augmenters(images=np.array(batch_images), bounding_boxes=batch_bbs)
             
-            # Resize augmented images to 640x640 and adjust bounding boxes
             for i, (aug_image, aug_bb) in enumerate(zip(aug_images, aug_bbs)):
                 aug_image, scale = resize_image(aug_image, max_size=(640, 640))
                 aug_bb = aug_bb.on(aug_image)
                 aug_bb = [clamp_bbox(bb, aug_image.shape) for bb in aug_bb]
+
+                valid_bbs = []
+                for bb in aug_bb:
+                    if bb.x1 < 0 or bb.y1 < 0 or bb.x2 < 0 or bb.y2 < 0:
+                        print("NEGATIVE")
+                        break
+                    bb = BoundingBox(
+                        x1=max(0, bb.x1),
+                        y1=max(0, bb.y1),
+                        x2=min(aug_image.shape[1], bb.x2),
+                        y2=min(aug_image.shape[0], bb.y2)
+                    )
+                    if is_valid_bbox(bb):
+                        valid_bbs.append(bb)
+
+                if len(valid_bbs) != len(aug_bb):
+                    continue  # Skip saving this image if any bounding box is invalid
                 
                 aug_img_id = f"{category}_aug_{start+i}"
                 aug_img_path = os.path.join(output_base_path, f"{aug_img_id}.jpg")
@@ -124,15 +144,16 @@ for category, images in images_by_class.items():
                         "ymax": bb.y2 / scale
                     },
                     "category": obj['category']
-                } for bb, obj in zip(aug_bb, annotation['objects'])]
+                } for bb, obj in zip(valid_bbs, annotation['objects'])]
                 
                 annotations[aug_img_id] = {
                     'path': f"train/{aug_img_id}.jpg",
                     'objects': new_objects
                 }
+                
+                generated += 1
 
 # Save the updated annotations to a new JSON file including both original and augmented images
 new_data = {'imgs': annotations}
 with open(new_annotation_file_path, 'w', encoding='utf-8') as f:
     json.dump(new_data, f, ensure_ascii=False, indent=4)
-

@@ -11,7 +11,7 @@ model = YOLO('yolov8m.pt')  # or specify the path to your model
 
 # Train the model
 print("Starting training...")
-model.train(data=os.path.join(dataset_location, 'data.yaml'), epochs=20, imgsz=640)
+model.train(data=os.path.join(dataset_location, 'data.yaml'), epochs=5, imgsz=640)
 print("Training completed.")
 
 # Display the confusion matrix and results images

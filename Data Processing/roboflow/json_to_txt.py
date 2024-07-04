@@ -96,12 +96,12 @@ def create_yolo_annotations(image_folders, annotation_json, yolo_output_dir):
 
 # Define paths to image folders
 image_folders = [
-    'C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k_2021/train/images',
+    'C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k_2021/validation/images',
 ]
 
 # Define paths to annotation JSON and YOLO output directory
-annotation_json = 'C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k_2021/train_split.json'
-yolo_output_dir = 'C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k_2021/train/labels'
+annotation_json = 'C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k_2021/val_split.json'
+yolo_output_dir = 'C:/Users/wezha/OneDrive/Desktop/tt100k_2021/tt100k_2021/validation/labels'
 
 # Create YOLO annotations
 create_yolo_annotations(image_folders, annotation_json, yolo_output_dir)
