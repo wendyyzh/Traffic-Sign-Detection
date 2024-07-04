@@ -32,8 +32,19 @@ train_ids = img_ids[:split_point]
 val_ids = img_ids[split_point:]
 
 # Create new annotation dictionaries
-train_split_annotations = {'imgs': {img_id: train_annotations[img_id] for img_id in train_ids}}
-val_split_annotations = {'imgs': {img_id: train_annotations[img_id] for img_id in val_ids}}
+train_split_annotations = {'imgs': {}}
+val_split_annotations = {'imgs': {}}
+
+# Update paths and populate new annotation dictionaries
+for img_id in train_ids:
+    img_info = train_annotations[img_id]
+    img_info['path'] = os.path.join('train_split', os.path.basename(img_info['path'])).replace("\\", "/")
+    train_split_annotations['imgs'][img_id] = img_info
+
+for img_id in val_ids:
+    img_info = train_annotations[img_id]
+    img_info['path'] = os.path.join('val', os.path.basename(img_info['path'])).replace("\\", "/")
+    val_split_annotations['imgs'][img_id] = img_info
 
 # Save the updated annotations to new JSON files
 with open(output_train_file_path, 'w', encoding='utf-8') as f:
@@ -49,9 +60,8 @@ os.makedirs(output_train_img_dir, exist_ok=True)
 # Move training images to the training_split directory
 for img_id in train_ids:
     img_info = train_annotations[img_id]
-    relative_image_path = img_info['path']
-    src_image_path = os.path.join(train_dir, os.path.basename(relative_image_path))
-    dest_image_path = os.path.join(output_train_img_dir, os.path.basename(relative_image_path))
+    src_image_path = os.path.join(train_dir, os.path.basename(img_info['path'])).replace("\\", "/")
+    dest_image_path = os.path.join(output_train_img_dir, os.path.basename(img_info['path'])).replace("\\", "/")
     if os.path.exists(src_image_path):
         shutil.move(src_image_path, dest_image_path)
     else:
@@ -60,9 +70,8 @@ for img_id in train_ids:
 # Move validation images to the validation directory
 for img_id in val_ids:
     img_info = train_annotations[img_id]
-    relative_image_path = img_info['path']
-    src_image_path = os.path.join(train_dir, os.path.basename(relative_image_path))
-    dest_image_path = os.path.join(output_val_img_dir, os.path.basename(relative_image_path))
+    src_image_path = os.path.join(train_dir, os.path.basename(img_info['path'])).replace("\\", "/")
+    dest_image_path = os.path.join(output_val_img_dir, os.path.basename(img_info['path'])).replace("\\", "/")
     if os.path.exists(src_image_path):
         shutil.move(src_image_path, dest_image_path)
     else:
